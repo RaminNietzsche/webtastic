@@ -7,6 +7,8 @@ import datetime
 import re
 import argparse
 
+import PyRSS2Gen
+
 from yapsy.PluginManager import PluginManagerSingleton
 from yapsy.VersionedPluginManager import VersionedPluginManager
 import logging
@@ -115,7 +117,41 @@ class Webtastic(object):
       dst = re.sub(r"^([^/]+)", OUTPUT_DIR, rel_file)
       os.system("cp %s %s" % (src, dst))
     # read every source file and compile it into OUTPUT directory
+    
+    # RSS Generator
+    rss = PyRSS2Gen.RSS2(
+            title="MashhadLUG",
+            link="http://mashhadlug.org",
+            description="MashhadLUG Rss",
+            language="fa", 
+            copyright="MashhadLUG 2014",
+            lastBuildDate=datetime.datetime.now(),
+            generator="WebStatic", 
+            docs="https://github.com/mashhadlug/website",
+          )    
+
+    srt = sorted(self.sources.src_files('source/reports/'), key = lambda x: x.published , reverse=True)
+    for entry in srt[0:20]:
+      less, more = entry.content.split("<!--more-->")
+      titles = []
+      for title in re.findall("((\* )?##[^\n]+)", more):
+        titles.append(title[0])
+      short_story_body = less + '\n\n'.join(titles)
+            
+      rss.items.append(PyRSS2Gen.RSSItem(
+                    title=entry.title,
+                    link='http://next.mashhadlug.org' + entry.link,
+                    description=short_story_body,
+                    guid=PyRSS2Gen.Guid('http://next.mashhadlug.org'+entry.link),
+                    pubDate=entry.published
+                    )
+      )
+
+    rss.write_xml(open("rss.xml", "w"))
+    # END OF RSS!    
+
     for src_file in self.sources.src_files():
+
       print 'html' + src_file.link
       self.src_file = src_file
       
@@ -211,6 +247,7 @@ class WebtasticSourceTree(object):
   def src_files (self, path='', recursive=True):
     """ Function doc """
     res = []
+
     for file_path in self.src_file_paths(path, recursive):
       f = WebtasticSourceFile(file_path)
       res.append(f)
